@@ -10,11 +10,14 @@ data BFState = BFState { dataMemory :: Memory Int
                        , output :: String }
              deriving (Show)
 
+memMax :: Int
+memMax = 29999
+
 initialDataMemory :: Memory Int
-initialDataMemory = listArray (0, 29999) (repeat 0)
+initialDataMemory = listArray (0, memMax) (repeat 0)
 
 initialInsnMemory :: Memory Char
-initialInsnMemory = listArray (0, 29999) $ "++++++++++[>+++++++>++++++++++>+++>+<<<<-]>++.>+.+++++++..+++.>++.<<+++++++++++++++.>.+++.------.--------.>+.>." ++ repeat ' '
+initialInsnMemory = listArray (0, memMax) $ "++++++++++[>+++++++>++++++++++>+++>+<<<<-]>++.>+.+++++++..+++.>++.<<+++++++++++++++.>.+++.------.--------.>+.>." ++ repeat ' '
 
 initialBFState :: BFState
 initialBFState = BFState initialDataMemory 0 initialInsnMemory 0 "" ""
@@ -31,15 +34,21 @@ jumpToMatchingOpenBrace s = case insnMemory s ! insnPointer s of
 
 
 evaluate :: BFState -> BFState
-evaluate s = if insnPointer s > 29999 then s else
-  let s' = case insnMemory s ! insnPointer s of
-        '>' -> s {dataPointer = dataPointer s + 1}
-        '<' -> s {dataPointer = dataPointer s - 1}
-        '+' -> s {dataMemory = dataMemory s // [(dataPointer s, (dataMemory s ! dataPointer s) + 1)]}
-        '-' -> s {dataMemory = dataMemory s // [(dataPointer s, (dataMemory s ! dataPointer s) - 1)]}
-        '.' -> s {output = output s ++ [toEnum (dataMemory s ! dataPointer s)]}
+evaluate s | insnPointer s > memMax = s
+evaluate s =
+  let s' = case iMem ! iPtr of
+        '>' -> s {dataPointer = dPtr + 1}
+        '<' -> s {dataPointer = dPtr - 1}
+        '+' -> s {dataMemory = dMem // [(dPtr, dVal + 1)]}
+        '-' -> s {dataMemory = dMem // [(dPtr, dVal - 1)]}
+        '.' -> s {output = output s ++ [toEnum dVal]}
         ',' -> error "no input yet supported"
-        '[' | dataMemory s ! dataPointer s == 0 -> jumpToMatchingCloseBrace s
-        ']' | dataMemory s ! dataPointer s /= 0 -> jumpToMatchingOpenBrace s
+        '[' | dVal == 0 -> jumpToMatchingCloseBrace s
+        ']' | dVal /= 0 -> jumpToMatchingOpenBrace s
         _ -> s
   in evaluate $ s' {insnPointer = insnPointer s' + 1}
+  where dMem = dataMemory s
+        dPtr = dataPointer s
+        dVal = dMem ! dPtr
+        iMem = insnMemory s
+        iPtr = insnPointer s
