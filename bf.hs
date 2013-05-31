@@ -32,21 +32,22 @@ jumpToMatchingOpenBrace s = case insnMemory s ! insnPointer s of
   '[' -> s
   _   -> jumpToMatchingOpenBrace $ s {insnPointer = insnPointer s - 1}
 
-
-evaluate :: BFState -> BFState
-evaluate s | insnPointer s > memMax = s
+evaluate :: BFState -> IO BFState
+evaluate s | insnPointer s > memMax = return s
 evaluate s =
   let s' = case iMem ! iPtr of
-        '>' -> s {dataPointer = dPtr + 1}
-        '<' -> s {dataPointer = dPtr - 1}
-        '+' -> s {dataMemory = dMem // [(dPtr, dVal + 1)]}
-        '-' -> s {dataMemory = dMem // [(dPtr, dVal - 1)]}
-        '.' -> s {output = output s ++ [toEnum dVal]}
-        ',' -> error "no input yet supported"
-        '[' | dVal == 0 -> jumpToMatchingCloseBrace s
-        ']' | dVal /= 0 -> jumpToMatchingOpenBrace s
-        _ -> s
-  in evaluate $ s' {insnPointer = insnPointer s' + 1}
+        '>' -> return $ s {dataPointer = dPtr + 1}
+        '<' -> return $ s {dataPointer = dPtr - 1}
+        '+' -> return $ s {dataMemory = dMem // [(dPtr, dVal + 1)]}
+        '-' -> return $ s {dataMemory = dMem // [(dPtr, dVal - 1)]}
+        '.' -> putStr [toEnum dVal] >> return s
+        ',' -> do c <- getChar
+                  return $ s {dataMemory = dMem // [(dPtr, fromEnum c)] }
+        '[' | dVal == 0 -> return $ jumpToMatchingCloseBrace s
+        ']' | dVal /= 0 -> return $ jumpToMatchingOpenBrace s
+        _ -> return s
+  in do s'' <- s'
+        evaluate s'' {insnPointer = insnPointer s'' + 1}
   where dMem = dataMemory s
         dPtr = dataPointer s
         dVal = dMem ! dPtr
